@@ -22,7 +22,22 @@ export const createApp = () => {
   app.use(helmet());
   app.use(
     cors({
-      origin: [env.FRONTEND_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin) return callback(null, true);
+        const cleanOrigin = requestOrigin.replace(/\/$/, '');
+        const configuredFrontend = env.FRONTEND_URL.replace(/\/$/, '');
+        
+        if (
+          cleanOrigin === configuredFrontend ||
+          cleanOrigin === 'http://localhost:5173' ||
+          cleanOrigin === 'http://127.0.0.1:5173' ||
+          cleanOrigin.endsWith('.vercel.app') ||
+          env.NODE_ENV !== 'production'
+        ) {
+          return callback(null, true);
+        }
+        return callback(null, true);
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
