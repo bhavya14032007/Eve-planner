@@ -1,0 +1,423 @@
+// Eve Planner - SQLite Development & Testing Prisma Schema
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  role         String    @default("CUSTOMER") // CUSTOMER, VENDOR, ADMIN
+  fullName     String
+  phone        String?
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  customerProfile  CustomerProfile?
+  vendorProfile    VendorProfile?
+  bookings         EventBooking[]    @relation("CustomerBookings")
+  reviews          Review[]          @relation("CustomerReviews")
+  wishlistItems    Wishlist[]
+  conversations    ChatConversation[] @relation("UserConversations")
+  messages         ChatMessage[]     @relation("UserMessages")
+  supportTickets   SupportTicket[]   @relation("UserTickets")
+  auditLogs        AdminAuditLog[]   @relation("AdminLogs")
+
+  @@index([email])
+  @@index([role])
+}
+
+model CustomerProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address         String?
+  city            String?
+  preferredBudget Float?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model VendorProfile {
+  id           String       @id @default(uuid())
+  userId       String       @unique
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName String
+  slug         String       @unique
+  categoryId   String?
+  category     ServiceCategory? @relation(fields: [categoryId], references: [id])
+  description  String
+  address      String
+  city         String
+  serviceArea  String?
+  phone        String
+  email        String
+  websiteUrl   String?
+  instagramUrl String?
+  status       String       @default("PENDING_REVIEW") // PENDING_REVIEW, APPROVED, REJECTED
+  rating       Float        @default(5.0)
+  reviewCount  Int          @default(0)
+  isVerified   Boolean      @default(false)
+  adminNotes   String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  documents    VendorDocument[]
+  listings     ServiceListing[]
+  reviews      Review[]         @relation("VendorReviews")
+  bookingRequests VendorBookingRequest[]
+  bookingServices BookingService[]
+
+  @@index([city])
+  @@index([status])
+  @@index([categoryId])
+}
+
+model VendorDocument {
+  id         String   @id @default(uuid())
+  vendorId   String
+  vendor     VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  docType    String   // BUSINESS_REGISTRATION, ID_PROOF, TAX_GST
+  docUrl     String
+  status     String   @default("SUBMITTED")
+  verifiedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([vendorId])
+}
+
+model ServiceCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String
+  icon        String
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  listings    ServiceListing[]
+  vendors     VendorProfile[]
+
+  @@index([slug])
+}
+
+model ServiceListing {
+  id            String   @id @default(uuid())
+  vendorId      String
+  vendor        VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      ServiceCategory @relation(fields: [categoryId], references: [id])
+  title         String
+  slug          String   @unique
+  description   String
+  startingPrice Float
+  priceUnit     String
+  maxGuests     Int?
+  city          String
+  location      String
+  inclusions    String   // JSON string of array
+  exclusions    String   // JSON string of array
+  isActive      Boolean  @default(true)
+  isFeatured    Boolean  @default(false)
+  rating        Float    @default(5.0)
+  reviewCount   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  images        ServiceImage[]
+  availabilities ServiceAvailability[]
+  packageServices PackageService[]
+  bookingServices BookingService[]
+  reviews       Review[]
+  wishlistItems Wishlist[]
+  vendorBookingRequests VendorBookingRequest[]
+
+  @@index([city])
+  @@index([categoryId])
+  @@index([startingPrice])
+  @@index([isActive])
+}
+
+model ServiceImage {
+  id        String   @id @default(uuid())
+  listingId String
+  listing   ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  imageUrl  String
+  altText   String?
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
+}
+
+model ServiceAvailability {
+  id          String   @id @default(uuid())
+  listingId   String
+  listing     ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  date        DateTime
+  isAvailable Boolean  @default(true)
+  bookedSlots Int      @default(0)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([listingId, date])
+  @@index([listingId, date])
+}
+
+model EventPackage {
+  id            String   @id @default(uuid())
+  name          String
+  slug          String   @unique
+  description   String
+  eventType     String
+  basePrice     Float
+  guestCapacity Int
+  durationHours Int      @default(4)
+  inclusions    String   // JSON array of strings
+  exclusions    String   // JSON array of strings
+  isPopular     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  imageUrl      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  packageServices PackageService[]
+  addons          PackageAddon[]
+  bookings        EventBooking[]
+  wishlistItems   Wishlist[]
+
+  @@index([eventType])
+  @@index([basePrice])
+  @@index([isActive])
+}
+
+model PackageService {
+  id         String   @id @default(uuid())
+  packageId  String
+  package    EventPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  listingId  String
+  listing    ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  isIncluded Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@unique([packageId, listingId])
+  @@index([packageId])
+  @@index([listingId])
+}
+
+model PackageAddon {
+  id          String   @id @default(uuid())
+  packageId   String
+  package     EventPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float
+  maxQuantity Int      @default(10)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([packageId])
+}
+
+model EventBooking {
+  id                  String        @id @default(uuid())
+  bookingNumber       String        @unique
+  customerId          String
+  customer            User          @relation("CustomerBookings", fields: [customerId], references: [id])
+  packageId           String?
+  package             EventPackage? @relation(fields: [packageId], references: [id])
+  eventType           String
+  eventDate           DateTime
+  startTime           String
+  endTime             String
+  location            String
+  city                String
+  guestCount          Int
+  specialRequirements String?
+  baseAmount          Float
+  addonsAmount        Float         @default(0)
+  taxAmount           Float         @default(0)
+  totalAmount         Float
+  status              String        @default("PENDING") // PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED
+  paymentStatus       String        @default("UNPAID")  // UNPAID, PARTIAL, PAID, REFUNDED
+  cancellationReason  String?
+  selectedAddonsJson  String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  services            BookingService[]
+  vendorRequests      VendorBookingRequest[]
+  payments            Payment[]
+  reviews             Review[]
+
+  @@index([customerId])
+  @@index([bookingNumber])
+  @@index([status])
+  @@index([eventDate])
+}
+
+model BookingService {
+  id        String   @id @default(uuid())
+  bookingId String
+  booking   EventBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   ServiceListing @relation(fields: [listingId], references: [id])
+  vendorId  String
+  vendor    VendorProfile @relation(fields: [vendorId], references: [id])
+  price     Float
+  status    String   @default("CONFIRMED")
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+  @@index([vendorId])
+}
+
+model VendorBookingRequest {
+  id          String        @id @default(uuid())
+  bookingId   String
+  booking     EventBooking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vendorId    String
+  vendor      VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  listingId   String
+  listing     ServiceListing @relation(fields: [listingId], references: [id])
+  status      String        @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  notes       String?
+  respondedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([bookingId, vendorId, listingId])
+  @@index([vendorId])
+  @@index([status])
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  bookingId     String
+  booking       EventBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  transactionId String   @unique
+  gateway       String   @default("RAZORPAY")
+  amount        Float
+  currency      String   @default("INR")
+  status        String   @default("SUCCESS")
+  paymentMethod String   @default("CARD")
+  rawPayload    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([bookingId])
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    User     @relation("CustomerReviews", fields: [customerId], references: [id])
+  vendorId    String
+  vendor      VendorProfile @relation("VendorReviews", fields: [vendorId], references: [id])
+  listingId   String?
+  listing     ServiceListing? @relation(fields: [listingId], references: [id])
+  bookingId   String?
+  booking     EventBooking? @relation(fields: [bookingId], references: [id])
+  rating      Int      @default(5)
+  comment     String
+  vendorReply String?
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([vendorId])
+  @@index([customerId])
+  @@index([rating])
+}
+
+model Wishlist {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  listingId  String?
+  listing    ServiceListing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  packageId  String?
+  package    EventPackage? @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model ChatConversation {
+  id              String        @id @default(uuid())
+  customerId      String
+  customer        User          @relation("UserConversations", fields: [customerId], references: [id], onDelete: Cascade)
+  vendorId        String?
+  supportTicketId String?
+  title           String        @default("Event Planning Chat")
+  type            String        @default("AI_ASSISTANT") // AI_ASSISTANT, VENDOR_CHAT, SUPPORT
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  messages        ChatMessage[]
+
+  @@index([customerId])
+  @@index([type])
+}
+
+model ChatMessage {
+  id             String           @id @default(uuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String?
+  sender         User?            @relation("UserMessages", fields: [senderId], references: [id])
+  senderRole     String
+  content        String
+  isAiGenerated  Boolean          @default(false)
+  metadata       String?
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId])
+}
+
+model SupportTicket {
+  id              String         @id @default(uuid())
+  ticketNumber    String         @unique
+  userId          String
+  user            User           @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  subject         String
+  category        String
+  priority        String         @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status          String         @default("OPEN")   // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  resolutionNotes String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AdminAuditLog {
+  id           String   @id @default(uuid())
+  adminId      String
+  admin        User     @relation("AdminLogs", fields: [adminId], references: [id])
+  action       String
+  targetEntity String
+  targetId     String
+  details      String?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+}
