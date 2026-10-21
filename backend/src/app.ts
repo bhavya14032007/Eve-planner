@@ -53,14 +53,31 @@ export const createApp = () => {
   // General rate limiter
   app.use('/api', generalLimiter);
 
-  // Health check endpoint
+  // Root and Health check endpoints
+  const getHealthPayload = () => ({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'Eve Planner API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      packages: '/api/packages',
+      services: '/api/services',
+      categories: '/api/services/categories',
+      vendors: '/api/vendors',
+    },
+  });
+
+  app.get('/', (_req, res) => {
+    res.json(getHealthPayload());
+  });
+
+  app.get('/api', (_req, res) => {
+    res.json(getHealthPayload());
+  });
+
   app.get('/api/health', (_req, res) => {
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      service: 'Eve Planner API',
-      version: '1.0.0',
-    });
+    res.json(getHealthPayload());
   });
 
   // API Routes
