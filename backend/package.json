@@ -5,8 +5,8 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && tsc",
-    "start": "node dist/server.js",
+    "build": "node scripts/generate.js && tsc",
+    "start": "node scripts/deploy-start.js",
     "prisma:generate": "prisma generate",
     "prisma:generate:sqlite": "prisma generate --schema=prisma/schema.sqlite.prisma",
     "db:push:sqlite": "prisma db push --schema=prisma/schema.sqlite.prisma",

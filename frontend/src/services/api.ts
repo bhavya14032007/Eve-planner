@@ -1,4 +1,4 @@
-const RAW_API_URL = import.meta.env.VITE_API_URL;
+const RAW_API_URL = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL;
 const API_BASE = RAW_API_URL
   ? `${RAW_API_URL.replace(/\/$/, '')}${RAW_API_URL.endsWith('/api') ? '' : '/api'}`
   : '/api';
