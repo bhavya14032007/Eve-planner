@@ -12,6 +12,7 @@ export const PackagesPage: React.FC = () => {
 
   const [packages, setPackages] = useState<EventPackage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<EventPackage | null>(null);
 
   const eventTypes = [
@@ -35,6 +36,19 @@ export const PackagesPage: React.FC = () => {
       console.error('Failed to load packages:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSeedPackages = async () => {
+    setSeeding(true);
+    try {
+      await packagesApi.seedPackages();
+      await loadPackages('All');
+      setSearchParams({});
+    } catch (err) {
+      console.error('Failed to seed packages:', err);
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -103,14 +117,27 @@ export const PackagesPage: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="p-12 text-center rounded-2xl bg-surface border border-border space-y-3">
+        <div className="p-12 text-center rounded-2xl bg-surface border border-border space-y-4 max-w-lg mx-auto">
           <p className="text-base font-bold text-text-primary">No packages found for this celebration type.</p>
-          <button
-            onClick={() => handleTypeSelect('All')}
-            className="px-4 py-2 rounded-lg bg-primary text-white text-xs font-bold"
-          >
-            Show All Packages
-          </button>
+          <p className="text-xs text-text-secondary">
+            If your database is fresh or empty, populate it with our curated celebration packages and verified vendors.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => handleTypeSelect('All')}
+              className="px-4 py-2.5 rounded-xl bg-surface-elevated border border-border text-text-primary text-xs font-bold hover:bg-border transition-colors"
+            >
+              Show All Packages
+            </button>
+            <button
+              onClick={handleSeedPackages}
+              disabled={seeding}
+              className="px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-hover transition-colors inline-flex items-center gap-2 disabled:opacity-50 shadow-subtle"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${seeding ? 'animate-spin' : ''}`} />
+              <span>{seeding ? 'Populating Database...' : 'Populate Demo Packages'}</span>
+            </button>
+          </div>
         </div>
       )}
 

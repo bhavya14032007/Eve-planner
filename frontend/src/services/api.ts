@@ -89,6 +89,8 @@ export const packagesApi = {
       method: 'POST',
       body: JSON.stringify({ packageId, selectedAddons }),
     }),
+  seedPackages: () =>
+    request<{ success: boolean; message: string; totalPackages: number }>('/packages/seed'),
 };
 
 // 4. Bookings API
